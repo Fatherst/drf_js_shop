@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+    <div class="form-container">
+        <h2>Добавить новый продукт</h2>
+        <form id="productForm">
+            <div class="form-group">
+                <label for="name">Название продукта</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Описание</label>
+                <textarea id="description" name="description"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="price">Цена</label>
+                <input type="number" id="price" name="price" min="0" step="0.01">
+            </div>
+            <button type="submit" class="btn">Отправить</button>
+        </form>
+        <div id="message" class="message"></div>
+    </div>
+
+    <h2>Список продуктов</h2>
+    <table id="productsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Описание</th>
+                <th>Цена</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Продукты будут добавлены сюда -->
+        </tbody>
+    </table>
+
+    <script>
+        // Функция для загрузки продуктов и обновления таблицы
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                const products = await response.json();
+
+                // Очищаем таблицу перед добавлением новых данных
+                const tableBody = document.querySelector('#productsTable tbody');
+                tableBody.innerHTML = '';
+
+                // Добавляем строки в таблицу для каждого продукта
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${product.id}</td>
+                        <td>${product.name}</td>
+                        <td>${product.description || ''}</td>
+                        <td>${product.price !== null ? product.price : ''}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке продуктов:', error);
+            }
+        }
+
+
+        // Загрузка продуктов при загрузке страницы
+        window.addEventListener('DOMContentLoaded', loadProducts);
+
+
+        document.getElementById('productForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Остановить стандартное поведение формы
+
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value || ''; // Если пусто, будет пустая строка
+            const price = document.getElementById('price').value || null; // Если пусто, будет null
+
+            // Проверка на обязательное поле "Название"
+            if (!name.trim()) {
+                document.getElementById('message').textContent = 'Название продукта обязательно для заполнения';
+                return;
+            }
+
+            // Проверка на наличие цены и ее значение
+            if (price && parseFloat(price) <= 0) {
+                document.getElementById('message').textContent = 'Цена должна быть больше нуля';
+                return;
+            }
+
+            // Создание объекта с данными формы
+            const productData = {
+                name: name,
+                description: description,
+                price: price ? parseFloat(price) : null  // Преобразование цены в число или null
+            };
+
+            try {
+                const response = await fetch('/api/products_create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(productData)
+                });
+
+                const result = await response.json();
+
+                // Проверяем успешность запроса
+                if (response.ok) {
+                    document.getElementById('message').textContent = 'Продукт успешно добавлен!';
+                    document.getElementById('productForm').reset(); // Сбросить форму
+                    loadProducts(); // Обновить список продуктов
+
+                } else {
+                    throw new Error(result.message || 'Ошибка при добавлении продукта');
+                }
+            } catch (error) {
+                document.getElementById('message').textContent = `Ошибка: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
